@@ -1,33 +1,27 @@
 # InfoSys 22 Assignment 1 — Table Reservation System
 
-Django backend for a restaurant table reservation system. Scope is **models, forms, views, and URLs only**. HTML template files, CSS, JavaScript, and deployment are not part of this activity.
+A simple Django backend for managing restaurant table reservations.
 
-The application still returns simple HTML from the views so pages and forms can be used in a browser.
+The project includes **models, forms, views, and URLs**. HTML templates, CSS, JavaScript, and deployment are not included.
 
-## How to run
+## How to Run
 
-From PowerShell:
+Open PowerShell:
 
 ```powershell
 cd C:\Users\Laurence\table-reservation
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/).
+Then open:
 
-Leave that terminal open while using the site. Stop the server with `Ctrl+C`.
+**http://127.0.0.1:8000/**
 
-To activate the virtual environment first:
+Keep the terminal open while using the website. Press `Ctrl+C` to stop the server.
 
-```powershell
-cd C:\Users\Laurence\table-reservation
-.\.venv\Scripts\Activate.ps1
-python manage.py runserver
-```
+### First-Time Setup
 
-### First-time setup (already done in this folder)
-
-If you copy the project to another machine:
+If the project is copied to another computer:
 
 ```powershell
 cd C:\Users\Laurence\table-reservation
@@ -37,181 +31,173 @@ python -m venv .venv
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Migrations for this copy have already been applied. Evidence is in `MIGRATION_EVIDENCE.txt`.
+## Project Files
 
-## Project layout
+The main submission files are in `reservation_app/`:
 
 ```text
-table-reservation/
-├── manage.py
-├── requirements.txt
-├── MIGRATION_EVIDENCE.txt
-├── documentation.md
-├── table_reservation/          # Django project settings
-│   ├── settings.py
-│   └── urls.py                 # includes reservation_app.urls
-└── reservation_app/            # required submission app
-    ├── models.py
-    ├── forms.py
-    ├── views.py
-    ├── urls.py
-    └── migrations/
+reservation_app/
+├── models.py
+├── forms.py
+├── views.py
+├── urls.py
+└── migrations/
 ```
-
-Required submission files live under `reservation_app/`.
-
-## How the pieces connect
-
-A request follows this path:
-
-**URL → view → form (on create/update) → model → database**
-
-1. The project `table_reservation/urls.py` sends non-admin paths to `reservation_app.urls`.
-2. The app `urls.py` matches the path to a named view (`app_name = "reservation_app"`).
-3. List and detail views read models and return a page.
-4. Create and update views bind a `ModelForm`. If `form.is_valid()` is true, the record is saved. If not, the same page is shown with validation errors and nothing is written.
-5. Reservation create, update, and cancel also insert an `AuditLog` row in code (there is no public audit form).
-
-That is the assignment pipeline: **ERD → Models → Forms → Views → URLs**.
 
 ## Models
 
-| Model | Purpose |
-| --- | --- |
-| `Customer` | Person who books a table |
-| `TableCategory` | Type of table (for example Indoor, Outdoor, VIP) |
-| `Table` | One reservable table, with capacity |
-| `ReservationStatus` | Standardized status (Pending, Confirmed, Cancelled, Completed) |
-| `Reservation` | One booking: customer, table, status, date, times, guest count |
-| `Payment` | Payment linked to a reservation |
-| `AuditLog` | Record of important reservation actions |
+The system has these models:
+
+* **Customer** — stores customer information.
+* **TableCategory** — stores table types such as Indoor, Outdoor, or VIP.
+* **Table** — stores table number, category, capacity, and availability.
+* **ReservationStatus** — stores reservation statuses.
+* **Reservation** — stores customer bookings.
+* **Payment** — stores payments for reservations.
+* **AuditLog** — records reservation actions.
 
 ### Relationships
 
-- One customer has many reservations (`Reservation.customer`).
-- One category has many tables (`Table.category`).
-- One reservation belongs to one customer, one table, and one status.
-- One reservation can have many payments (`Payment.reservation`).
-- One reservation can have many audit logs (`AuditLog.reservation`).
+* A customer can have many reservations.
+* A category can have many tables.
+* A reservation has one customer, table, and status.
+* A reservation can have many payments.
+* A reservation can have many audit logs.
 
-Unique fields: customer email, category name, table number, status name.
+The following fields are unique:
 
-Most models have `created_at` and `updated_at`. `AuditLog` only has `created_at` because logs are not edited.
+* Customer email
+* Category name
+* Table number
+* Status name
 
-Statuses **Pending**, **Confirmed**, **Cancelled**, and **Completed** are seeded by migration `0002_seed_reservation_statuses`.
+Most models have `created_at` and `updated_at`.
 
 ## Forms
 
-| Form | Editable fields |
-| --- | --- |
-| `CustomerForm` | first name, last name, email, phone |
-| `TableCategoryForm` | name, description |
-| `TableForm` | table number, category, capacity, available |
-| `ReservationStatusForm` | name, description |
-| `ReservationForm` | customer, table, status, date, start time, end time, guests, notes |
-| `PaymentForm` | reservation, amount, method, status, reference |
+The project has these forms:
 
-IDs and timestamps are excluded. `AuditLog` has no public form.
+* `CustomerForm`
+* `TableCategoryForm`
+* `TableForm`
+* `ReservationStatusForm`
+* `ReservationForm`
+* `PaymentForm`
 
-`ReservationForm` widgets:
+IDs and timestamps are not editable.
 
-- date picker for reservation date
-- time pickers for start and end time
-- number input for guest count
+The reservation form includes date, time, and guest-count inputs.
 
-### Reservation validation
+### Reservation Validation
 
-Invalid data is rejected by the form and is not saved:
+The reservation form checks that:
 
-- number of guests must be positive
-- end time must be later than start time
-- guest count cannot exceed the selected table’s capacity
-- unavailable tables cannot be booked
-- the same table cannot be double-booked for overlapping times on the same date (cancelled reservations are ignored)
+* Guests must be greater than 0.
+* End time must be after start time.
+* Guests cannot exceed table capacity.
+* An unavailable table cannot be booked.
+* A table cannot have overlapping reservations.
+* Cancelled reservations do not count as conflicts.
+
+Invalid reservations are not saved.
 
 ## Views
 
-Each resource has the views required by the checklist.
+The system provides:
 
-| Resource | Views |
-| --- | --- |
-| Customer | list, detail, create, update, delete |
-| Table category | list, detail, create, update, delete |
-| Table | list, detail, create, update, delete |
-| Reservation status | list, create, update, delete (no detail page) |
-| Reservation | list, detail, create, update, cancel |
-| Payment | list, detail, create, update |
-| Audit log | list, detail |
+| Resource           | Available actions                    |
+| ------------------ | ------------------------------------ |
+| Customer           | List, detail, create, update, delete |
+| Table category     | List, detail, create, update, delete |
+| Table              | List, detail, create, update, delete |
+| Reservation status | List, create, update, delete         |
+| Reservation        | List, detail, create, update, cancel |
+| Payment            | List, detail, create, update         |
+| Audit log          | List, detail                         |
 
-### Extra reservation behaviour
+Deleting a category, table, or status that is still being used is blocked.
 
-- Filter reservations by customer: `/reservations/?customer=1`
-- Filter reservations by date: `/reservations/?date=2026-08-20`
-- Filter payments by reservation: `/payments/?reservation=1`
-- Filter audit logs by reservation: `/audit-logs/?reservation=1`
-- Cancel sets status to **Cancelled** and writes an audit row (the row is not deleted).
-- Create and update also write audit rows (`created` / `updated`).
+## Reservation Features
 
-Deleting a table, category, or status that is still in use is blocked (`PROTECT`) and the view shows an error instead of breaking.
+Reservations can be filtered by:
+
+```text
+/reservations/?customer=1
+/reservations/?date=2026-08-20
+```
+
+Payments can be filtered by reservation:
+
+```text
+/payments/?reservation=1
+```
+
+Audit logs can also be filtered:
+
+```text
+/audit-logs/?reservation=1
+```
+
+When a reservation is:
+
+* **Created** — an audit log is added.
+* **Updated** — an audit log is added.
+* **Cancelled** — its status changes to Cancelled and an audit log is added.
+
+The reservation is not deleted when it is cancelled.
 
 ## URLs
 
-All routes are named and use `<int:pk>` for IDs.
-
-| Path | Name |
-| --- | --- |
-| `/` | `home` |
-| `/customers/` | `customer_list` |
-| `/customers/add/` | `customer_create` |
-| `/customers/<id>/` | `customer_detail` |
-| `/customers/<id>/edit/` | `customer_update` |
-| `/customers/<id>/delete/` | `customer_delete` |
-| `/table-categories/` | `table_category_list` |
-| `/table-categories/add/` | `table_category_create` |
-| `/table-categories/<id>/` | `table_category_detail` |
-| `/table-categories/<id>/edit/` | `table_category_update` |
-| `/table-categories/<id>/delete/` | `table_category_delete` |
-| `/tables/` | `table_list` |
-| `/tables/add/` | `table_create` |
-| `/tables/<id>/` | `table_detail` |
-| `/tables/<id>/edit/` | `table_update` |
-| `/tables/<id>/delete/` | `table_delete` |
-| `/reservation-statuses/` | `reservation_status_list` |
+| Path                         | Name                        |
+| ---------------------------- | --------------------------- |
+| `/`                          | `home`                      |
+| `/customers/`                | `customer_list`             |
+| `/customers/add/`            | `customer_create`           |
+| `/customers/<id>/`           | `customer_detail`           |
+| `/customers/<id>/edit/`      | `customer_update`           |
+| `/customers/<id>/delete/`    | `customer_delete`           |
+| `/table-categories/`         | `table_category_list`       |
+| `/table-categories/add/`     | `table_category_create`     |
+| `/tables/`                   | `table_list`                |
+| `/tables/add/`               | `table_create`              |
+| `/reservation-statuses/`     | `reservation_status_list`   |
 | `/reservation-statuses/add/` | `reservation_status_create` |
-| `/reservation-statuses/<id>/edit/` | `reservation_status_update` |
-| `/reservation-statuses/<id>/delete/` | `reservation_status_delete` |
-| `/reservations/` | `reservation_list` |
-| `/reservations/add/` | `reservation_create` |
-| `/reservations/<id>/` | `reservation_detail` |
-| `/reservations/<id>/edit/` | `reservation_update` |
-| `/reservations/<id>/cancel/` | `reservation_cancel` |
-| `/payments/` | `payment_list` |
-| `/payments/add/` | `payment_create` |
-| `/payments/<id>/` | `payment_detail` |
-| `/payments/<id>/edit/` | `payment_update` |
-| `/audit-logs/` | `audit_log_list` |
-| `/audit-logs/<id>/` | `audit_log_detail` |
+| `/reservations/`             | `reservation_list`          |
+| `/reservations/add/`         | `reservation_create`        |
+| `/reservations/<id>/`        | `reservation_detail`        |
+| `/reservations/<id>/edit/`   | `reservation_update`        |
+| `/reservations/<id>/cancel/` | `reservation_cancel`        |
+| `/payments/`                 | `payment_list`              |
+| `/payments/add/`             | `payment_create`            |
+| `/payments/<id>/`            | `payment_detail`            |
+| `/payments/<id>/edit/`       | `payment_update`            |
+| `/audit-logs/`               | `audit_log_list`            |
+| `/audit-logs/<id>/`          | `audit_log_detail`          |
 
-Named reverse example: `redirect("reservation_app:reservation_detail", pk=reservation.pk)`.
+## Demo
 
-## Suggested demo walkthrough
+A simple demonstration can be done in this order:
 
-1. Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/).
-2. Add a **table category**, then a **table** with capacity 4.
-3. Add a **customer**.
-4. Add a **reservation** with 2 guests and a valid time range. It should save, and an audit log should appear on the reservation detail page.
-5. Try the same form with 8 guests, or an end time before the start time. The form should show errors and not save.
-6. Open `/reservations/?customer=1` to filter by customer.
-7. Add a **payment** for that reservation, then open `/payments/?reservation=1`.
-8. Cancel the reservation. Status becomes **Cancelled** and another audit row is created.
+1. Create a table category.
+2. Create a table with capacity 4.
+3. Create a customer.
+4. Create a reservation for 2 guests.
+5. Check the reservation detail page and audit log.
+6. Try an invalid reservation, such as 8 guests. An error should appear.
+7. Filter reservations by customer.
+8. Add a payment and filter payments by reservation.
+9. Cancel the reservation.
+10. Check that the status is **Cancelled** and a new audit log was created.
 
-## What is out of scope
+## Out of Scope
 
-Per the assignment:
+This assignment does not require:
 
-- `templates/`
-- CSS / JavaScript / Bootstrap / Tailwind
-- visual design
-- deployment
+* HTML template files
+* CSS
+* JavaScript
+* Bootstrap or Tailwind
+* Visual design
+* Deployment
 
-Django admin is registered for convenience but is not a required deliverable. Use `/admin/` only if you create a superuser.
+Django Admin is available for convenience but is not required.
